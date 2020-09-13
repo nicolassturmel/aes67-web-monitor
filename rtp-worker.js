@@ -35,6 +35,12 @@ var getRtp = (params) => {
     let madd = params.maddress
     let port = params.port
     let host = params.host
+
+    // check multi
+    let b1 = parseInt(madd.split(".")[0])
+    if(b1 < 224 || b1 > 240)
+        return
+
     let offset = params.offset || 0
     client = dgram.createSocket({ type: "udp4", reuseAddr: true });
   
@@ -136,7 +142,7 @@ parentPort.on("message",(t) => {
             getRtp(t.data)
             break
         case "restart":
-            client.close()
+            if(client) client.close()
             console.log(t)
             getRtp(t.data)
         case "clear":

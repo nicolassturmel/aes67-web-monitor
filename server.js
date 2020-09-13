@@ -1,12 +1,31 @@
 const WebSocket = require('ws');
+var http = require('http')
+var exp = require('express')
 const fs = require('fs');
 var dgram = require('dgram'); 
 var stats = require('./statistics')
 const { Worker } = require('worker_threads')
 const sdpTransform = require('sdp-transform');
 const os = require('os');
+const url = require('url');
 
 var RtpReceivers = {}
+
+// Web server
+// ----------
+
+const user_app = exp();
+
+const server = http.createServer(user_app);
+
+user_app.use('/', exp.static(__dirname + '/html'));
+
+server.listen(8067, () => {
+  console.log(`Server started on port 8067 :)`);
+});
+
+// Mechanics
+// ---------
 
 var getInterfaces = () => {
   var netInt = os.networkInterfaces()
@@ -29,21 +48,20 @@ console.log(getInterfaces())
 
 var launchRtpReceiver = (sdp,host,id) =>
 {
-  console.log(sdp.connection)
   var worker = new Worker("./rtp-worker.js")
   worker.on('online', () => { 
-    worker.postMessage({
-      type: "start",
-      data: {
-        maddress: sdp.connection.ip.split("/")[0],
-        host: host,
-        port: sdp.media[0].port,
-        codec: "L24",
-        channels: 2,
-        buuferLength: 0.05,
-        offset: (sdp.media && sdp.media.length>0 && sdp.media[0].mediaClk && sdp.media[0].mediaClk.mediaClockName == "direct")? sdp.media[0].mediaClk.mediaClockValue : 0
-      }
-    })
+    // worker.postMessage({
+    //   type: "start",
+    //   data: {
+    //     maddress: sdp.connection.ip.split("/")[0],
+    //     host: host,
+    //     port: sdp.media[0].port,
+    //     codec: "L24",
+    //     channels: 2,
+    //     buuferLength: 0.05,
+    //     offset: (sdp.media && sdp.media.length>0 && sdp.media[0].mediaClk && sdp.media[0].mediaClk.mediaClockName == "direct")? sdp.media[0].mediaClk.mediaClockValue : 0
+    //   }
+    // })
     console.log('One more worker') 
   })
   worker.on('message',(k) => {
@@ -61,26 +79,43 @@ var launchRtpReceiver = (sdp,host,id) =>
 let wss,
     wss2;
 
-  openSocket();
+server.on('upgrade', function upgrade(request, socket, head) {
+    const pathname = url.parse(request.url).pathname;
+  
+    if (pathname === '/pcm') {
+      wss.handleUpgrade(request, socket, head, function done(ws) {
+        wss.emit('connection', ws, request);
+      });
+    } else if (pathname === '/stats') {
+      wss2.handleUpgrade(request, socket, head, function done(ws) {
+        wss2.emit('connection', ws, request);
+      });
+    } else {
+      socket.destroy();
+    }
+  });
+openSocket();
 
 let timeOffset = 0n
 
-function getPTP() {
+var clientPTP = null
+
+function getPTP(host) {
+  if(clientPTP) clientPTP.close()
   let madd = '224.0.1.129'
   let port = 319
-  let host = "192.168.1.162"
-  var client = dgram.createSocket({ type: "udp4", reuseAddr: true });
+  clientPTP = dgram.createSocket({ type: "udp4", reuseAddr: true });
 
-  client.on('listening', function () {
+  clientPTP.on('listening', function () {
       console.log('UDP Client listening on ' + madd + ":" + port);
-      client.setBroadcast(true)
-      client.setMulticastTTL(128); 
-      client.addMembership(madd,host);
+      clientPTP.setBroadcast(true)
+      clientPTP.setMulticastTTL(128); 
+      clientPTP.addMembership(madd,host);
   });
 
 
 
-  client.on('message', function (message, remote) {
+  clientPTP.on('message', function (message, remote) {
     let time = process.hrtime.bigint()
     if(message.readUInt8(0) == 0 && message.readUInt8(1) == 0x2) {
       let ts1 = message.readUInt8(34)
@@ -102,22 +137,23 @@ function getPTP() {
   })
 
 
-  client.bind(port);
+  clientPTP.bind(port);
 }
 
 let sdpCollections = []
+var clientSAP = null
+function getSAP(host) {
+  if(clientSAP) clientSAP.close()
 
-function getSAP() {
   let madd = '239.255.255.255'
   let port = 9875
-  let host = "192.168.1.162"
-  var client = dgram.createSocket({ type: "udp4", reuseAddr: true });
+  clientSAP = dgram.createSocket({ type: "udp4", reuseAddr: true });
 
-  client.on('listening', function () {
+  clientSAP.on('listening', function () {
       console.log('UDP Client listening on ' + madd + ":" + port);
-      client.setBroadcast(true)
-      client.setMulticastTTL(128); 
-      client.addMembership(madd,host);
+      clientSAP.setBroadcast(true)
+      clientSAP.setMulticastTTL(128); 
+      clientSAP.addMembership(madd,host);
   });
 
   var removeSdp = (name) => {
@@ -128,7 +164,7 @@ function getSAP() {
      }
   }
 
-  client.on('message', function (message, remote) {
+  clientSAP.on('message', function (message, remote) {
     let sdp = sdpTransform.parse(message.toString().split("application/sdp")[1])
     let timer = setTimeout( () => {
       removeSdp(sdp.name)
@@ -152,7 +188,7 @@ function getSAP() {
   })
 
 
-  client.bind(port);
+  clientSAP.bind(port);
 }
 
 var sendSDP = (SDP,action) => {
@@ -168,7 +204,7 @@ var sendSDP = (SDP,action) => {
 }
 
 function openSocket() {
-  wss = new WebSocket.Server({ port: 8080 });
+  wss = new WebSocket.Server({ noServer: true });
   console.log('Server ready...');
   wss.on('connection', function connection(ws) {
         console.log('Socket connected. sending data...');
@@ -177,7 +213,7 @@ function openSocket() {
         //   sendData();
         // }, 50);
   });
-  wss2 = new WebSocket.Server({ port: 8081 });
+  wss2 = new WebSocket.Server({ noServer: true });
   console.log('Server ready...');
   wss2.on('connection', function connection(ws) {
         console.log('Socket connected. sending data...');
@@ -205,6 +241,9 @@ function openSocket() {
               })
             }
             
+          }
+          if(msg.type == "selectInterface") {
+            chooseInterface(msg.data)
           }
         })
         ws.on("error",() => console.log("You got halted due to an error"))
@@ -234,30 +273,19 @@ function sendData(struct) {
     });
 }
 
-getPTP()
-getSAP()
+var chooseInterface = (add) => {
+  sdpCollections.forEach((id) => {
+      sendSDP(id.sdp,"remove")
+  })
+  sdpCollections = []
+  getPTP(add)
+  getSAP(add)
+}
 
-let sdpstr ="v=0\n\
-o=- 2 0 IN IP4 192.168.1.135\n\
-s=ASIO (on OCT00317)_Horus_80858_AES 3-3\n\
-c=IN IP4 239.1.1.135/15\n\
-t=0 0\n\
-a=clock-domain:PTPv2 0\n\
-a=ts-refclk:ptp=IEEE1588-2008:00-1D-C1-FF-FE-13-05-90:0\n\
-a=mediaclk:direct=0\n\
-m=audio 5008 RTP/AVP 98\n\
-c=IN IP4 239.1.1.135/15\n\
-a=rtpmap:98 L24/48000/\n\
-a=source-filter: incl IN IP4 239.1.1.135 192.168.1.135\n\
-a=clock-domain:PTPv2 0\n\
-a=sync-time:0\n\
-a=framecount:48-768\n\
-a=palign:0\n\
-a=ptime:1\n\
-a=ts-refclk:ptp=IEEE1588-2008:00-1D-C1-FF-FE-13-05-90:0\n\
-a=mediaclk:direct=0\n\
-a=recvonly\n\
-a=ASIO-clock:4242\n\
-"
+launchRtpReceiver(null,null,"thgssdfw")
 
-launchRtpReceiver(sdpTransform.parse(sdpstr),"192.168.1.162","thgssdfw")
+
+
+
+
+

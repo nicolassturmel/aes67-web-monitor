@@ -1,10 +1,11 @@
 #container {
     display: grid;
-    grid-template-rows:  50px auto;
+    grid-template-rows:  50px 1fr auto;
     grid-template-columns: 30px 60px 1fr 30px ;
     grid-template-areas:
     ". vumeter button ."
-    ". vumeter collection .";
+    ". vumeter collection ."
+    ". . collection .";
 }    
 
 #optbar {
@@ -29,7 +30,7 @@
 #vumeter {
     grid-area: vumeter;
     position: relative;
-    min-height: 400px;
+    height: 400px;
     width: 60px;
 }
 
@@ -41,6 +42,48 @@
 
 #collection-in {
     width: 100%;
+}
+
+#circle {
+    width: 30px;
+    height: 30px;
+    border-radius: 20%;
+    background-color: red;
+    padding: 0 1em;
+}
+#circle.on {
+    background-color: green;
+}
+
+#nostream {
+    position: absolute;
+    z-index: 10;
+    width: 100%;
+    height: 100%;
+}
+
+#nostream:before,#nostream:after{
+    z-index: 10;
+    content:'';
+    position:absolute;
+    width:6px;
+    height:45%;
+    background-color:grey;
+    border-radius:2px;
+    top:20%;
+}
+
+#nostream:before{
+    -webkit-transform:rotate(25deg);
+    -moz-transform:rotate(25deg);
+    transform:rotate(25deg);
+    left:45%;
+}
+#nostream:after{
+    -webkit-transform:rotate(-25deg);
+    -moz-transform:rotate(-25deg);
+    transform:rotate(-25deg);
+    right:45%;
 }
 
 .hspace {

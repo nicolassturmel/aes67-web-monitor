@@ -8,6 +8,7 @@
 <body>
 <div id="container">
     <div id=vumeter>
+        <div id=nostream></div>
         <div id=left class="bar  left white"></div>
         <div id=leftlvl class="bar audio left"></div>
         <div id=leftmax class="bar max left"></div>
@@ -33,7 +34,7 @@
 
         </div>
     </div>
-    <div id=optbar><span id=button class=hspace>Play audio</span><span class=hspace><select id=interfaceSelect></select></span> </div>
+    <div id=optbar><span id=button class=hspace>Play audio</span><span class=hspace><select id=interfaceSelect></select></span><span id=circle class=hspace>server</span> </div>
 </div>
 <div id=datasee>show / hide debug data</div>
 <div id=data class=hidden></div>
@@ -106,8 +107,8 @@ var makeGrad = () => {
     }
                     
 
-   var socketURL = 'ws://192.168.1.162:8080';
-   var socketURL2 = 'ws://192.168.1.162:8081';
+   var socketURL = 'ws://192.168.1.162:8067/pcm';
+   var socketURL2 = 'ws://192.168.1.162:8067/stats';
    var player = null
 
    var startPlay = () => {
@@ -147,12 +148,24 @@ var makeGrad = () => {
    makeGrad()
 
    var ws = new WebSocket(socketURL);
-       ws.binaryType = 'arraybuffer';
-       ws.addEventListener('message',function(event) {
-            var data = new Uint8Array(event.data);
-            if(player)
-               player.feed(data);
-       });
+    ws.binaryType = 'arraybuffer';
+    ws.onopen = () => document.getElementById("circle").classList.add("on")
+    ws.onclose = () => document.getElementById("circle").classList.remove("on")
+    ws.addEventListener('message',function(event) {
+        var data = new Uint8Array(event.data);
+        if(player)
+            player.feed(data);
+    });
+
+    let laststream = 0 
+    
+    setInterval(() => {
+        let T = Date.now() - laststream
+        if(T < 500)
+            document.getElementById("nostream").classList.add("hidden")
+        else
+            document.getElementById("nostream").classList.remove("hidden")
+    },100)
 
     var ws = new WebSocket(socketURL2);
        ws.addEventListener('message',function(event) {
@@ -160,10 +173,11 @@ var makeGrad = () => {
             let gjj = JSON.parse(event.data)
             switch(gjj.type) {
                 case "stats":
+                    laststream = Date.now()
                     bufferstats[bufferindex] = gjj.data
                     bufferindex = (bufferindex + 1)%bufferstats.length
                     let jj = bufferstats[(bufferindex + 2)%bufferstats.length]
-                    if(!jj) return
+                    if(!jj.rms) return
                     setHeight(jj.rms[0],"left")
                     setHeight(jj.rms[1],"right")
                     setMax(jj.peak[0],"left")
@@ -205,16 +219,24 @@ var makeGrad = () => {
                             cont.appendChild(elem)
                         }
                     }
+                    else if(gjj.action == "remove") {
+                        let name = gjj.data.name
+                        let elem = document.getElementById("session-" + name)
+                        if(elem) elem.outerHTML = ""
+                    }
                     break;
                 case "interfaces":
                     let select = document.getElementById("interfaceSelect")
+                    let elem = document.createElement("option")
+                    elem.innerHTML = "choose an interface"
+                    select.appendChild(elem)
                     gjj.data.forEach(i => {
                         let elem = document.createElement("option")
                         elem.innerHTML = i.name + " : " + i.ip
                         elem.value = i.ip
                         select.appendChild(elem)
                     })
-                    select.selectedIndex = 1
+                    select.selectedIndex = 0
                     console.log(gjj.data)
                     break
                 default:
