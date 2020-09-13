@@ -1,0 +1,171 @@
+#container {
+    display: grid;
+    grid-template-rows:  50px auto;
+    grid-template-columns: 30px 60px 1fr 30px ;
+    grid-template-areas:
+    ". vumeter button ."
+    ". vumeter collection .";
+}    
+
+#optbar {
+    display: inline-block;
+    grid-area: button;
+    margin: 10px auto;
+}
+
+#button {
+    text-align: center;
+    line-height: 30px;
+    height: 30px;
+    margin: 10px auto;
+    padding: 0 1em;
+    border: 2px green solid;
+}
+
+#button.on {
+    background-color: #0eec90;
+}
+
+#vumeter {
+    grid-area: vumeter;
+    position: relative;
+    min-height: 400px;
+    width: 60px;
+}
+
+#collection {
+    grid-area: collection;
+    width: calc(100% - 70px);
+    margin-left: 30px;
+}
+
+#collection-in {
+    width: 100%;
+}
+
+.hspace {
+    margin: 0 20px;
+}
+
+.session {
+    display: inline-block;
+    padding: 0 1em;
+    margin: 2px;
+    min-width: 160px;
+    overflow: hidden;
+    height: 100%;
+    border: #aa00aa 3px solid;
+}
+
+.selected {
+    background-color: gray;
+}
+
+.hidden {
+    display: none;
+}
+
+.bar {
+    position: absolute;
+    bottom: 20%;
+    height: 75%;
+    width: 20px;
+}
+
+.left {
+    left: calc(50% - 30px );
+    background: grey;
+}
+.right {
+    right: calc(50% - 30px );
+    background: grey;
+}
+.audio {
+    transition: height 50ms ease-in-out;
+    background-color: #aa00aa;
+}
+.max {
+    transition: bottom 50ms ease-in-out;
+    background-color: orange;
+    height: 2px;
+}
+.maxg {
+    transition: bottom 50ms ease-in-out;
+    background-color: red;
+    height: 2px;
+}
+
+.graduation {
+    left: calc(50% - 10px );
+    background: white;
+}
+
+.gradElem {
+    position: absolute;
+    text-align: center;
+    width: 100%;
+    font-size: small;
+}
+
+.white {
+    background-color: #EEEEEE;
+}
+
+.stats {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    height: 20%;
+    width: 60px;
+    bottom: 0;
+    left: calc(50% - 30px)
+}
+
+.good {
+    z-index: 3;
+    position: flex;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: black;
+}
+
+.delay {
+    position: absolute;
+    right: 50%;
+    height: 20%;
+    width: 50%;
+    clip-path: polygon(0 0%, 0% 100%, 90% 50%);
+}
+.interpacket {
+    position: absolute;
+    left: 50%;
+    height: 20%;
+    width: 50%;
+    clip-path: polygon(100% 100%, 100% 0%, 10% 50%);
+}
+
+.mean-stat {
+    background-color: black;
+}
+
+.max-stat {
+    box-sizing: border-box;
+    background-color: transparent;
+    border: green 8px solid;
+}
+.maxg-stat {
+    box-sizing: border-box;
+    background-color: transparent;
+    border: red 3px solid;
+}
+
+.txt-stats {
+    position: absolute;
+    width: 100%;
+    top: 10%;
+    right: 0;
+    text-align: center;
+    font-size: small;
+}

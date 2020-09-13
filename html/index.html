@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My AES67 web test</title>
+    <link rel="stylesheet" href="vumeter.css">
+</head>
+<body>
+<div id="container">
+    <div id=vumeter>
+        <div id=left class="bar  left white"></div>
+        <div id=leftlvl class="bar audio left"></div>
+        <div id=leftmax class="bar max left"></div>
+        <div id=leftmaxg class="bar maxg left"></div>
+        <div id=graduation class="bar graduation"></div>
+        <div id=right class="bar  right white"></div>
+        <div id=rightlvl class="bar audio right"></div>
+        <div id=rightmax class="bar max right"></div>
+        <div id=rightmaxg class="bar maxg right"></div>
+        <div id=stats class=stats >
+            <div id=txtstats class="txt-stats">RTP</div>
+            <div id=good class=good></div>
+            <div id=good-ip-mean class="interpacket mean-stat"></div>
+            <div id=good-ip-max class="interpacket max-stat"></div>
+            <div id=good-ip-maxg class="interpacket maxg-stat"></div>
+            <div id=good-del-mean class="delay mean-stat"></div>
+            <div id=good-del-max class="delay max-stat"></div>
+            <div id=good-del-maxg class="delay maxg-stat"></div>
+        </div>
+    </div>
+    <div id=collection>
+        <div id="collection-in">
+
+        </div>
+    </div>
+    <div id=optbar><span id=button class=hspace>Play audio</span><span class=hspace><select id=interfaceSelect></select></span> </div>
+</div>
+<div id=datasee>show / hide debug data</div>
+<div id=data class=hidden></div>
+<script>
+
+var bufferstats = [{},{},{},{},{},{}]
+var bufferindex = 0
+var packet_size = 48
+
+var setHeight = (a , b) => {
+    let l = document.getElementById(b).getBoundingClientRect().height
+    let lvl = 0
+    if(a === null) 
+        lvl = 0
+    else if(a > 0)
+        lvl = l
+    else if(a < -90)
+        lvl = 2
+    else
+        lvl = (((100+a)/21.5)**3 / 100 * l)
+    document.getElementById(b + "lvl").style.height =  lvl + "px"
+}
+var setMax = (a , b) => {
+    let l = document.getElementById(b).getBoundingClientRect().height
+    let lvl = 0
+    if(a > 0)
+        lvl = l
+    else if(a < -90)
+        lvl = 2
+    else
+        lvl = (((100+a)/21.5)**3 / 100 * l)
+    document.getElementById(b + "max").style.bottom = "calc(20% + " + lvl + "px)" 
+}
+var setMaxg = (a , b) => {
+    let l = document.getElementById(b).getBoundingClientRect().height
+    let lvl = 0
+    if(a > 0)
+        lvl = l
+    else if(a < -90)
+        lvl = 2
+    else
+        lvl = (((100+a)/21.5)**3 / 100 * l)
+    document.getElementById(b + "maxg").style.bottom = "calc(20% + " + lvl + "px)" 
+}
+
+var makeGrad = () => {
+    let c = document.getElementById("graduation")
+    let l = c.getBoundingClientRect().height
+    let vals = [-6,-12,-24,-36,-90]
+    vals.forEach(element => {
+        let d = document.createElement("div")
+        d.innerHTML = element
+        d.className = "gradElem"
+        d.style.bottom = (((100+element)/21.5)**3) + "%"
+        c.appendChild(d)
+
+    });
+}
+
+ window.onload = function() {
+
+    let select = document.getElementById("interfaceSelect")
+    select.onchange = () => {
+        ws.send(JSON.stringify(
+            {
+                type: "selectInterface",
+                data: select.options[select.selectedIndex].value
+            }
+        ))
+    }
+                    
+
+   var socketURL = 'ws://192.168.1.162:8080';
+   var socketURL2 = 'ws://192.168.1.162:8081';
+   var player = null
+
+   var startPlay = () => {
+       player = new PCMPlayer({
+            encoding: '32bitInt',
+            channels: 2,
+            sampleRate: 48000,
+            flushingTime:150
+        });
+    }
+   let data = true
+
+   document.getElementById("button").onclick = () => {
+       if(player) {
+            player.destroy()
+            player = null
+           console.log("Stoping play")
+           document.getElementById("button").classList.remove("on")
+       }
+       else {
+           startPlay()
+           console.log("Starting play")
+           document.getElementById("button").classList.add("on")
+       }
+   }
+
+   document.getElementById("datasee").onclick = () => {
+    if(data) {
+        document.getElementById("data").classList.remove("hidden")
+    }
+    else {
+        document.getElementById("data").classList.add("hidden")
+    }
+    data = !data
+   }
+
+   makeGrad()
+
+   var ws = new WebSocket(socketURL);
+       ws.binaryType = 'arraybuffer';
+       ws.addEventListener('message',function(event) {
+            var data = new Uint8Array(event.data);
+            if(player)
+               player.feed(data);
+       });
+
+    var ws = new WebSocket(socketURL2);
+       ws.addEventListener('message',function(event) {
+            document.getElementById('data').innerHTML = event.data
+            let gjj = JSON.parse(event.data)
+            switch(gjj.type) {
+                case "stats":
+                    bufferstats[bufferindex] = gjj.data
+                    bufferindex = (bufferindex + 1)%bufferstats.length
+                    let jj = bufferstats[(bufferindex + 2)%bufferstats.length]
+                    if(!jj) return
+                    setHeight(jj.rms[0],"left")
+                    setHeight(jj.rms[1],"right")
+                    setMax(jj.peak[0],"left")
+                    setMax(jj.peak[1],"right")
+                    setMaxg(jj.peakg[0],"left")
+                    setMaxg(jj.peakg[1],"right")
+                    document.getElementById("good-ip-mean").style.height = Math.min(100*jj.inter_packets.mean/20,100) + "%"
+                    document.getElementById("good-ip-max").style.height = Math.min(100*jj.inter_packets.max/20,100) + "%"
+                    document.getElementById("good-ip-maxg").style.height = Math.min(100*jj.inter_packets.max_global/20,100) + "%"
+                    document.getElementById("good-del-mean").style.height = Math.min(100*jj.delay.mean/packet_size/20,100) + "%"
+                    document.getElementById("good-del-max").style.height = Math.min(100*jj.delay.max/20/packet_size,100) + "%"
+                    document.getElementById("good-del-maxg").style.height = Math.min(100*jj.delay.max_global/20/packet_size,100) + "%"
+                    let g = document.getElementById("good")
+                    if(jj.inter_packets.max_global > 20 || jj.delay.max_global > 20*packet_size) g.style["background-color"] = "red"
+                    else if(jj.delay.mean/48/jj.inter_packets.mean < 2) g.style["background-color"] = "green"
+                    else g.style["background-color"] = "orange"
+                    break;
+                case "streams":
+                    if(gjj.action == "update")  {
+                        let cont = document.getElementById("collection-in")
+                        let name = gjj.data.name
+                        let elem = document.getElementById("session-" + name)
+                        if(!elem)
+                        {
+                            console.log(gjj.data)
+                            elem = document.createElement("div")
+                            elem.id = "session-" + name
+                            elem.className = "session"
+                            elem.innerHTML = name + "<br>" + (gjj.data.connection ? gjj.data.connection.ip : gjj.data.media[0].connection.ip)+ ":" + gjj.data.media[0].port
+                            elem.onclick = () => {
+                                ws.send(JSON.stringify({type: 'session', data: name}))
+                                document.querySelectorAll("div.session").forEach(elem => {
+                                    if(elem.id == "session-" + name )
+                                        elem.classList.add("selected")
+                                    else
+                                        elem.classList.remove("selected")
+                                })
+                            }
+                            cont.appendChild(elem)
+                        }
+                    }
+                    break;
+                case "interfaces":
+                    let select = document.getElementById("interfaceSelect")
+                    gjj.data.forEach(i => {
+                        let elem = document.createElement("option")
+                        elem.innerHTML = i.name + " : " + i.ip
+                        elem.value = i.ip
+                        select.appendChild(elem)
+                    })
+                    select.selectedIndex = 1
+                    console.log(gjj.data)
+                    break
+                default:
+                    break;
+            }
+            
+       });
+
+   document.getElementById("vumeter").onclick = () => {
+       ws.send(JSON.stringify({type: 'clear'}))
+       console.log('sending clear')
+   }
+ }   
+</script>
+<script type="text/javascript" src="../pcm-player.js"></script>
+</body>
+</html>

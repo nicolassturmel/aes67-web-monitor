@@ -1,0 +1,26 @@
+{
+  "name": "aes67-web-monitor",
+  "version": "1.0.0",
+  "description": "Web service to remotely monitor AES67 streams",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nicolassturmel/aes67-web-monitor.git"
+  },
+  "keywords": [
+    "aes67",
+    "node",
+    "webAudio",
+    "pcm"
+  ],
+  "author": "Nicolas Sturmel",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nicolassturmel/aes67-web-monitor/issues"
+  },
+  "homepage": "https://github.com/nicolassturmel/aes67-web-monitor#readme"
+}
