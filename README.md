@@ -3,9 +3,9 @@
 AES67-web-monitor is a micro service that allows you to monitor your LAN AES67 streams on your browser. This means ... on your phone too !
 
 Just run
-'''
+```
 sudo node --experimental-worker server.js
-'''
+```
 
 ### Why root ? 
 The PTP ports are bellow 1024 and require root privileges to be openned
