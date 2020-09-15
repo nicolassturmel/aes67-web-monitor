@@ -10,6 +10,7 @@ const os = require('os');
 const url = require('url');
 
 var RtpReceivers = {}
+let selectedDevice = null
 
 // Web server
 // ----------
@@ -228,7 +229,7 @@ function openSocket() {
             if(sdpElem) {
               let params = {
                 maddress: (sdpElem.sdp.connection ? sdpElem.sdp.connection.ip.split("/")[0] : sdpElem.sdp.media[0].connection.ip.split("/")[0]),
-                host: "192.168.1.162",
+                host: selectedDevice,
                 port: sdpElem.sdp.media[0].port,
                 codec: "L24",
                 channels: 2,
@@ -280,6 +281,7 @@ var chooseInterface = (add) => {
   sdpCollections = []
   getPTP(add)
   getSAP(add)
+  selectedDevice = add
 }
 
 launchRtpReceiver(null,null,"thgssdfw")
