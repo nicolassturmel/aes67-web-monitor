@@ -227,7 +227,7 @@ function openSocket() {
             let sdpElem = sdpCollections.filter(e => e.name == msg.data)[0]
             if(sdpElem) {
               let params = {
-                maddress: sdpElem.sdp.connection.ip.split("/")[0],
+                maddress: (sdpElem.sdp.connection ? sdpElem.sdp.connection.ip.split("/")[0] : sdpElem.sdp.media[0].connection.ip.split("/")[0]),
                 host: "192.168.1.162",
                 port: sdpElem.sdp.media[0].port,
                 codec: "L24",

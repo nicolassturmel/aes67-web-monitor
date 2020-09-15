@@ -2,10 +2,25 @@
 
 AES67-web-monitor is a micro service that allows you to monitor your LAN AES67 streams on your browser. This means ... on your phone too !
 
-Just run
+# How To
+
+First get code
+```
+git clone https://github.com/nicolassturmel/aes67-web-monitor
+cd aes67-web-monitor
+```
+
+the dependencies
+```
+nom i
+```
+
+Then just run
 ```
 sudo node --experimental-worker server.js
 ```
+
+Once on the webpage, choose an interface to discover from and wait for SAP to do its magic
 
 ### Why root ? 
 The PTP ports are bellow 1024 and require root privileges to be openned
