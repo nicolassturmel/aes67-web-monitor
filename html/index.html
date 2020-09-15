@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>My AES67 web test</title>
     <link rel="stylesheet" href="vumeter.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 </head>
 <body>
 <div id="container">
@@ -34,7 +35,7 @@
 
         </div>
     </div>
-    <div id=optbar><span id=button class=hspace>Play audio</span><span class=hspace><select id=interfaceSelect></select></span><span id=circle class=hspace>server</span> </div>
+    <div id=optbar><span id=button class=hspace>Play </span><span id=circle class=hspace>S</span><span class=hspace><select id=interfaceSelect></select></span> </div>
 </div>
 <div id=datasee>show / hide debug data</div>
 <div id=data class=hidden></div>
@@ -107,8 +108,8 @@ var makeGrad = () => {
     }
                     
 
-   var socketURL = 'ws://192.168.1.162:8067/pcm';
-   var socketURL2 = 'ws://192.168.1.162:8067/stats';
+   var socketURL = 'ws://'+self.location.host+'/pcm';
+   var socketURL2 = 'ws://'+self.location.host+'/stats';
    var player = null
 
    var startPlay = () => {
