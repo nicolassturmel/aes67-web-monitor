@@ -10,9 +10,9 @@ git clone https://github.com/nicolassturmel/aes67-web-monitor
 cd aes67-web-monitor
 ```
 
-the dependencies
+then the dependencies
 ```
-nom i
+npm i
 ```
 
 Then just run
