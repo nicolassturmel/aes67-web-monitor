@@ -44,6 +44,7 @@
 var bufferstats = [{},{},{},{},{},{}]
 var bufferindex = 0
 var packet_size = 48
+var params = null
 
 var setHeight = (a , b) => {
     let l = document.getElementById(b).getBoundingClientRect().height
@@ -113,12 +114,19 @@ var makeGrad = () => {
    var player = null
 
    var startPlay = () => {
+       if(!params) return
+       if(player) {
+           player.destroy()
+           player = null 
+           document.getElementById("button").classList.remove("on")
+       }
        player = new PCMPlayer({
             encoding: '32bitInt',
             channels: 2,
             sampleRate: 48000,
             flushingTime:150
         });
+        document.getElementById("button").classList.add("on")
     }
    let data = true
 
@@ -132,7 +140,6 @@ var makeGrad = () => {
        else {
            startPlay()
            console.log("Starting play")
-           document.getElementById("button").classList.add("on")
        }
    }
 
@@ -203,7 +210,7 @@ var makeGrad = () => {
                         let elem = document.getElementById("session-" + name)
                         if(!elem)
                         {
-                            console.log(gjj.data)
+                            //console.log(gjj.data)
                             elem = document.createElement("div")
                             elem.id = "session-" + name
                             elem.className = "session"
@@ -239,6 +246,10 @@ var makeGrad = () => {
                     })
                     select.selectedIndex = 0
                     console.log(gjj.data)
+                    break
+                case "params":
+                    params = gjj.data
+                    if(player) startPlay()
                     break
                 default:
                     break;

@@ -53,6 +53,7 @@ PCMPlayer.prototype.isTypedArray = function(data) {
 };
 
 PCMPlayer.prototype.feed = function(data) {
+    //console.log("Feeding size ",data.length)
     if (!this.isTypedArray(data)) return;
     data = this.getFormatedValue(data);
     var tmp = new Float32Array(this.samples.length + data.length);
@@ -95,7 +96,7 @@ PCMPlayer.prototype.flush = function() {
         offset,
         i,
         decrement;
-
+    //console.log(this.option.channels)
     for (channel = 0; channel < this.option.channels; channel++) {
         audioData = audioBuffer.getChannelData(channel);
         offset = channel;

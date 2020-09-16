@@ -176,7 +176,6 @@ function getSAP(host) {
         timer: timer,
         name: sdp.name
       })
-      if(sdp.name.includes("EX")) console.log(sdp,sdp.media[0].mediaClk)
       sendSDP(sdp,"update")
     }
     else {
@@ -185,6 +184,7 @@ function getSAP(host) {
       item.sdp = sdp
       sendSDP(sdp,"update")
     }
+    console.log(sdp.name,sdp.media[0].rtp)
     
   })
 
@@ -204,8 +204,30 @@ var sendSDP = (SDP,action) => {
   })
 }
 
+let params = null
+
 function openSocket() {
-  wss = new WebSocket.Server({ noServer: true });
+  wss = new WebSocket.Server({ 
+              noServer: true , 
+              perMessageDeflate: {
+              zlibDeflateOptions: {
+                // See zlib defaults.
+                chunkSize: 1024,
+                memLevel: 7,
+                level: 3
+              },
+              zlibInflateOptions: {
+                chunkSize: 10 * 1024
+              },
+              // Other options settable:
+              clientNoContextTakeover: true, // Defaults to negotiated value.
+              serverNoContextTakeover: true, // Defaults to negotiated value.
+              serverMaxWindowBits: 10, // Defaults to negotiated value.
+              // Below options specified as default values.
+              concurrencyLimit: 10, // Limits zlib concurrency for perf.
+              threshold: 1024 // Size (in bytes) below which messages
+              // should not be compressed.
+            }});
   console.log('Server ready...');
   wss.on('connection', function connection(ws) {
         console.log('Socket connected. sending data...');
@@ -218,33 +240,50 @@ function openSocket() {
   console.log('Server ready...');
   wss2.on('connection', function connection(ws) {
         console.log('Socket connected. sending data...');
+        ws.send(JSON.stringify({
+          type: "params",
+          data: params
+        }));
         ws.on('message',(m) => {
           let msg = JSON.parse(m)
           console.log(m,msg)
-          if(msg.type == "clear") { 
-            Object.keys(RtpReceivers).forEach(k => RtpReceivers[k].postMessage({type: "clear"}))
-          }
-          if(msg.type == "session") {
-            let sdpElem = sdpCollections.filter(e => e.name == msg.data)[0]
-            if(sdpElem) {
-              let params = {
-                maddress: (sdpElem.sdp.connection ? sdpElem.sdp.connection.ip.split("/")[0] : sdpElem.sdp.media[0].connection.ip.split("/")[0]),
-                host: selectedDevice,
-                port: sdpElem.sdp.media[0].port,
-                codec: "L24",
-                channels: 2,
-                buuferLength: 0.05,
-                offset: (sdpElem.sdp.media && sdpElem.sdp.media.length>0 && sdpElem.sdp.media[0].mediaClk && sdpElem.sdp.media[0].mediaClk.mediaClockName == "direct")? sdpElem.sdp.media[0].mediaClk.mediaClockValue : 0        
+          switch(msg.type) {
+            case "clear":
+              Object.keys(RtpReceivers).forEach(k => RtpReceivers[k].postMessage({type: "clear"}))
+              break
+            case "session":
+              let sdpElem = sdpCollections.filter(e => e.name == msg.data)[0]
+              if(sdpElem) {
+                console.log(sdpElem)
+                params = {
+                  maddress: (sdpElem.sdp.connection ? sdpElem.sdp.connection.ip.split("/")[0] : sdpElem.sdp.media[0].connection.ip.split("/")[0]),
+                  host: selectedDevice,
+                  port: sdpElem.sdp.media[0].port,
+                  codec: "L24",
+                  channels: sdpElem.sdp.media[0].rtp[0].encoding,
+                  buuferLength: 0.05,
+                  offset: (sdpElem.sdp.media && sdpElem.sdp.media.length>0 && sdpElem.sdp.media[0].mediaClk && sdpElem.sdp.media[0].mediaClk.mediaClockName == "direct")? sdpElem.sdp.media[0].mediaClk.mediaClockValue : 0        
+                }
+                RtpReceivers["thgssdfw"].postMessage({
+                  type: "restart",
+                  data: params
+                })
+                wss2.clients.forEach(function each(client) {
+                  if (client.readyState === WebSocket.OPEN) {
+                      client.send(JSON.stringify({
+                        type: "params",
+                        data: params
+                      }));
+                  }
+                });
               }
-              RtpReceivers["thgssdfw"].postMessage({
-                type: "restart",
-                data: params
-              })
-            }
-            
-          }
-          if(msg.type == "selectInterface") {
-            chooseInterface(msg.data)
+              break
+            case "selectInterface":
+              chooseInterface(msg.data)
+              break
+            default:
+              console.log("Unprocessed " + msg.type)
+              break
           }
         })
         ws.on("error",() => console.log("You got halted due to an error"))

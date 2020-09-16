@@ -22,11 +22,10 @@ let interval = 0.05,
     new Buffer.alloc(interval*sampleRate* bytePerSample * channels)
   ]
 
-  console.log(buffer)
+  //console.log(buffer)
 
   let currentBuffer = 0
   let currentPos = 0
-  let tic = 0 
 
   var client = null
 
@@ -35,6 +34,16 @@ var getRtp = (params) => {
     let madd = params.maddress
     let port = params.port
     let host = params.host
+    channels = params.channels
+
+    let mix = []
+
+    for(let g = 0 ; g < channels ; g++)
+        mix[g] = (g%2 == 0)? [1,0] : [0,1]
+        //buffer[g] = new Buffer.alloc(interval*sampleRate* bytePerSample * channels)
+
+    for(let c = 0 ; c < channels ; c++)
+        rms[c] = new stats()
 
     // check multi
     let b1 = parseInt(madd.split(".")[0])
@@ -53,10 +62,6 @@ var getRtp = (params) => {
   
     let lastSeq = 0
     let lastTime = BigInt(0)
-    let tc = 0
-    let Tdiff = 0
-    let max = 0
-    let min = Number.POSITIVE_INFINITY
   
     client.on('message', function (message, remote) {   
         //console.log(".")
@@ -86,20 +91,30 @@ var getRtp = (params) => {
         if(lastSeq == 65535) lastSeq = -1
         
   
-        for(let i = 0; i < (message.length - 12)/(channels * bytePerSampleStream); i++) 
+        for(let sampleIndex = 0; sampleIndex < (message.length - 12)/(channels * bytePerSampleStream); sampleIndex++) 
         {
           if(currentPos == interval*sampleRate)
           {
+            //console.log("sending " + currentPos + " at " + Date.now())
             currentPos = 0
+            let rmsT = [],
+                peakT = [],
+                peakgT = []
+
+            for(let c = 0 ; c < channels ; c++) {
+                rmsT[c] = 10*Math.log10(rms[c].get(true).mean)
+                peakT[c] = 10*Math.log10(rms[c].get(true).max)
+                peakgT[c] = 10*Math.log10(rms[c].get().max_global)
+            }
             parentPort.postMessage({
                 type: "data",
                 data: {
                     buffer: buffer[currentBuffer],
                     delay: delay_stats.get(),
                     inter_packets: inter_packet_stats.get(),
-                    rms: [10*Math.log10(rms[0].get(true).mean),10*Math.log10(rms[1].get(true).mean)],
-                    peak: [10*Math.log10(rms[0].get(true).max),10*Math.log10(rms[1].get(true).max)],
-                    peakg: [10*Math.log10(rms[0].get().max_global),10*Math.log10(rms[1].get().max_global)],
+                    rms: rmsT,
+                    peak: peakT,
+                    peakg: peakgT,
                     rtp : {
                         payload_type: pt,
                         ssrc: ssrc
@@ -113,18 +128,16 @@ var getRtp = (params) => {
             currentBuffer = (currentBuffer+1)%2
           }
   
-          //console.log(i)
-          let s = Math.pow(2,31)*0.999*Math.sin(2*Math.PI*403*tic/sampleRate)
-          let s1 = (message.readInt32BE(i*6+12 - 1) & 0x00FFFFFF) << 8
-          let s2 = (message.readInt32BE(i*6+12 + 3 - 1) & 0x00FFFFFF) << 8
-          rms[0].add((s1 / Math.pow(2,31))*(s1 / Math.pow(2,31)))
-          rms[1].add((s2 / Math.pow(2,31))*(s2 / Math.pow(2,31)))
-          //if(i == 0) console.log(s1)
-          buffer[currentBuffer].writeInt32LE(s1,bytePerSample * channels*currentPos)
-          buffer[currentBuffer].writeInt32LE(s2,bytePerSample * channels*currentPos + bytePerSample)
+          let s, sL = 0, sR = 0
+          for(let c = 0 ; c < channels ; c++) {
+            s = (message.readInt32BE(sampleIndex*bytePerSampleStream*channels+12 + bytePerSampleStream*c - 1) & 0x00FFFFFF) << 8
+            rms[c].add((s / Math.pow(2,(8*bytePerSample-1)))*(s / Math.pow(2,(8*bytePerSample-1))))
+            sL += mix[c][0]* s
+            sR += mix[c][1]* s
+          }
+          buffer[currentBuffer].writeInt32LE(sL,bytePerSample * 2*currentPos)
+          buffer[currentBuffer].writeInt32LE(sR,bytePerSample * 2*currentPos + bytePerSample)
           currentPos += 1
-          //if(currentPos == 1) buffer[currentBuffer].writeInt32LE(Math.pow(2,31)-1,0)
-          tic++
         }
     });
   
@@ -143,7 +156,7 @@ parentPort.on("message",(t) => {
             break
         case "restart":
             if(client) client.close()
-            console.log(t)
+            //console.log(t)
             getRtp(t.data)
         case "clear":
             inter_packet_stats.clear()
