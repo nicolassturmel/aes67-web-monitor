@@ -135,6 +135,10 @@ var getRtp = (params) => {
             sL += mix[c][0]* s
             sR += mix[c][1]* s
           }
+          if(sL > 2147483647) sL = 2147483647
+          if(sR > 2147483647) sR = 2147483647
+          if(sL < -2147483648) sL = -2147483648
+          if(sR < -2147483648) sR = -2147483648
           buffer[currentBuffer].writeInt32LE(sL,bytePerSample * 2*currentPos)
           buffer[currentBuffer].writeInt32LE(sR,bytePerSample * 2*currentPos + bytePerSample)
           currentPos += 1
